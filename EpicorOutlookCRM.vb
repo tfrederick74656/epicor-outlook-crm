@@ -13,14 +13,13 @@ Public Class EpicorOutlookCRM
 	Dim btnEmail As Office.CommandBarButton = Nothing
 
 	Private Sub EpicorOutlookCRM_Startup() Handles Me.Startup
-		'Start watching Outlook folders for new messages.
-		'Fetch and cache information from the Progress/SQL database.
-		'Create the CRM toolbar.
+		AddToolbar()
+		'StartWatchingFolders() 'Folders are automatically watched by their respective event handlers.
 	End Sub
 
 	Private Sub EpicorOutlookCRM_Shutdown() Handles Me.Shutdown
-		'Stop watching Outlook folders for new messages.
 		RemoveToolbar()
+		StopWatchingFolders()
 	End Sub
 
 	' Create the CRM toolbar and related objects for application startup.
@@ -28,8 +27,7 @@ Public Class EpicorOutlookCRM
 		' Verify the command bar and buttons don't already exist
 		If (cbCRM Is Nothing And btnCall Is Nothing And btnEmail Is Nothing) Then
 			' Create a new command bar and add it to Outlook
-			Dim cmdBars As Office.CommandBars = Me.Application.ActiveExplorer().CommandBars
-			cbCRM = cmdBars.Add("Epicor/Outlook CRM", Office.MsoBarPosition.msoBarTop, False, True)
+			cbCRM = Application.ActiveExplorer().CommandBars.Add("Epicor/Outlook CRM", Office.MsoBarPosition.msoBarTop, False, True)
 			' Create a new button for CRM calls, add it the command bar, and specify a click event handler.
 			btnCall = CType(cbCRM.Controls.Add(1), Office.CommandBarButton)
 			With btnCall
@@ -48,6 +46,7 @@ Public Class EpicorOutlookCRM
 				.Tag = "buttonEmail"
 			End With
 			AddHandler btnEmail.Click, AddressOf HandleToolbarButtonClick
+			cbCRM.Visible = True
 		End If
 	End Sub
 
@@ -88,5 +87,21 @@ Public Class EpicorOutlookCRM
 		End Try
 		Return image
 	End Function
+
+	' Remove the event handlers for incoming and outgoing messages.
+	Private Sub StopWatchingFolders()
+		RemoveHandler Application.NewMailEx, AddressOf HandleIncomingMail
+		RemoveHandler Application.ItemSend, AddressOf HandleOutgoingMail
+	End Sub
+
+	' Handle the event generated when a message is received.
+	Private Sub HandleIncomingMail(ByVal EntryIDCollection As String) Handles Application.NewMailEx
+		MsgBox("Item Received")
+	End Sub
+
+	' Handle the event generated when a message is sent.
+	Private Sub HandleOutgoingMail(ByVal Item As System.Object, ByRef Cancel As Boolean) Handles Application.ItemSend
+		MsgBox("Item Sent")
+	End Sub
 
 End Class
