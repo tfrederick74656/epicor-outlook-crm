@@ -35,7 +35,7 @@
     <PublishUrl>T:\Temp\CRM2\</PublishUrl>
     <InstallUrl />
     <TargetCulture>en</TargetCulture>
-    <ApplicationVersion>1.0.0.10</ApplicationVersion>
+    <ApplicationVersion>1.0.0.20</ApplicationVersion>
     <AutoIncrementApplicationRevision>true</AutoIncrementApplicationRevision>
     <UpdateEnabled>true</UpdateEnabled>
     <UpdateInterval>7</UpdateInterval>
@@ -273,7 +273,7 @@
       <FlavorProperties GUID="{BAA0C2D2-18E2-41B9-852F-F413020CAA33}">
         <ProjectProperties HostName="Outlook" HostPackage="{29A7B9D7-A7F1-4328-8EF0-6B2D1A56B2C1}" OfficeVersion="15.0" VstxVersion="4.0" ApplicationType="Outlook" Language="vb" TemplatesPath="" DebugInfoExeName="#Software\Microsoft\Office\16.0\Outlook\InstallRoot\Path#outlook.exe" AddItemTemplatesGuid="{5D898164-AEB5-470F-97BA-9253F022FD71}" />
         <Host Name="Outlook" PublishedHash="69C324AB27932AA2FBF2B7EA72250886FF164DE6" IconIndex="0">
-          <HostItem Name="ThisAddIn" Code="EpicorOutlookCRM.vb" CanonicalName="AddIn" CanActivate="false" IconIndex="1" Blueprint="EpicorOutlookCRM.Designer.xml" GeneratedCode="EpicorOutlookCRM.Designer.vb" PublishedHash="2E246724F553AA7F96444B00E33C599F53FAAD13" />
+          <HostItem Name="ThisAddIn" Code="EpicorOutlookCRM.vb" CanonicalName="AddIn" PublishedHash="2E246724F553AA7F96444B00E33C599F53FAAD13" CanActivate="false" IconIndex="1" Blueprint="EpicorOutlookCRM.Designer.xml" GeneratedCode="EpicorOutlookCRM.Designer.vb" />
         </Host>
       </FlavorProperties>
     </VisualStudio>

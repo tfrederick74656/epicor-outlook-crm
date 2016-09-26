@@ -5,18 +5,32 @@ Option Strict On
 
 Imports System.Drawing
 Imports System.Windows.Forms
+Imports Microsoft.Office.Core
 
 Public Class EpicorOutlookCRM
 
-	Dim cbCRM As Office.CommandBar = Nothing
-	Dim btnCall As Office.CommandBarButton = Nothing
-	Dim btnEmail As Office.CommandBarButton = Nothing
-	Dim lastSync As System.DateTime = Date.MinValue
+	Dim cbCRM As CommandBar = Nothing
+	Dim btnCall As CommandBarButton = Nothing
+	Dim btnEmail As CommandBarButton = Nothing
+	Dim lastSync As DateTime = Date.MinValue
+	Dim syncTimer As Timer = Nothing
+	Dim timerInterval As Integer = 1 * (60 * 1000) ' Convert minutes to milliseconds
 
 	Private Sub EpicorOutlookCRM_Startup() Handles Me.Startup
 		AddToolbar()
 		'StartWatchingFolders() 'Folders are automatically watched by their respective event handlers.
-		StartInitialSync()
+	End Sub
+
+	Private Sub HandleStartup()
+		MsgBox("Outlook Startup")
+	End Sub
+
+	Private Sub HandleSync()
+		MsgBox("Sync Start/End")
+	End Sub
+
+	Private Sub HandleSyncProgress(ByVal State As Outlook.OlSyncState, ByVal Description As String, ByVal Value As Long, ByVal Max As Long)
+		MsgBox("Sync Progress")
 	End Sub
 
 	Private Sub EpicorOutlookCRM_Shutdown() Handles Me.Shutdown
@@ -91,10 +105,13 @@ Public Class EpicorOutlookCRM
 		Return image
 	End Function
 
+
 	' Remove the event handlers for incoming and outgoing messages.
 	Private Sub StopWatchingFolders()
 		RemoveHandler Application.NewMailEx, AddressOf HandleIncomingMail
 		RemoveHandler Application.ItemSend, AddressOf HandleOutgoingMail
+		syncTimer.Stop()
+		syncTimer.Dispose()
 	End Sub
 
 
@@ -119,11 +136,36 @@ Public Class EpicorOutlookCRM
 	' Handle messages synchronized when Outlook first opens
 	' Handle messages received when Outlook is running
 
+	'Start Outlook
+	'Register a handler for AppFolder SyncEnd, NewMailEx, and ItemSend
+	'Start a manual sync. We don't know when the initial sync ends, since it doesn't throw an event but manually started sync events won't start/finish until after the initial sync-
+	'-and they do throw a SyncEnd event, so we can immediately manually start a sync, wait for it to finish, and then queue off of that SyncEnd event.
+	'When the sync finishes, start a method to handle the initial sync and/or messages received offline
+	' Unregister the SyncEnd handler
+	' Record the current time as currentSync
+	' Scan through all stores for messages received that match the criteria described and process those that do
+	' This could take a while is the user has a lot of new mesages, so queue any other events until this process is completed
+	' Set lastSync = currentSync since we've now processed everything received prior to the currentSync time
+	' Start the SyncEvent timer
+	' Dequeue and process any events received during the previous timeframe.
+	' Exit the initialSync process
+	'Handle timerTick, NewMailEx, and ItemSend as usual
+	' timerTick triggers a full folder scan, NewMailEx searches only the inbox, ItemSend works on a single event at time
+
+	'SyncObjects.Item(n) is 1-INDEXED! 1 = All Account, 2 = Application Folders
+	Public Sub InitialSyncLogic()
+
+	End Sub
+
 	Public Sub SyncEvent()
 		'Dim dispatcherTimer As New System.Threading.Timer
 		'AddHandler dispatcherTimer.Tick, AddressOf dispatcherTimer_Tick
 		'dispatcherTimer.Interval = New TimeSpan(0, 0, 1)
 		'dispatcherTimer.Start()
+		Dim timer As New Timer
+		timer.Interval = timerInterval
+		';AddHandler timer.Tick, AddressOf HandleSyncEvent
+		timer.Start()
 	End Sub
 
 	'Handle messages received between end of previous sync and end of the current sync
@@ -133,7 +175,7 @@ Public Class EpicorOutlookCRM
 		Application.Session.SyncObjects.AppFolders.Start()
 	End Sub
 
-	'Handle the message received before the first manual sync completed
+	'Handle the message received before the first manual sync completed`
 	Private Sub HandleSyncEvent()
 
 		' If this is the first time we're running the sync event handler (initial manual sync), register the NewMailEx event handler.
