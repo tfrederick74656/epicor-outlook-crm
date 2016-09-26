@@ -9,12 +9,14 @@ Imports Microsoft.Office.Core
 
 Public Class EpicorOutlookCRM
 
+	Private Const gstrAllAccountsSyncObjectName As String = "All Accounts"
+	Private Const gintTimerInterval As Integer = 1 * (60 * 1000) ' Convert minutes to milliseconds
+
 	Dim cbCRM As CommandBar = Nothing
 	Dim btnCall As CommandBarButton = Nothing
 	Dim btnEmail As CommandBarButton = Nothing
 	Dim lastSync As DateTime = Date.MinValue
 	Dim syncTimer As Timer = Nothing
-	Dim timerInterval As Integer = 1 * (60 * 1000) ' Convert minutes to milliseconds
 
 	Private Sub EpicorOutlookCRM_Startup() Handles Me.Startup
 		AddToolbar()
@@ -152,56 +154,66 @@ Public Class EpicorOutlookCRM
 	'Handle timerTick, NewMailEx, and ItemSend as usual
 	' timerTick triggers a full folder scan, NewMailEx searches only the inbox, ItemSend works on a single event at time
 
-	'SyncObjects.Item(n) is 1-INDEXED! 1 = All Account, 2 = Application Folders
-	Public Sub InitialSyncLogic()
+	Private Sub SetupSync()
+		Dim syncObject As Outlook.SyncObject = GetAllAccountsSyncObject()
+		AddHandler syncObject.SyncEnd, AddressOf MainSyncLogic
+		syncObject.Start()
+	End Sub
+
+	' Set up a timer used to trigger periodic scans of all Outlook folders
+	Private Sub timerSetup()
+		syncTimer = New Timer
+		AddHandler syncTimer.Tick, AddressOf HandleTickEvent
+		With syncTimer
+			.Interval = gintTimerInterval
+			.Start()
+		End With
+	End Sub
+
+	Private Sub HandleTickEvent(ByVal Sender As Object, ByVal e As EventArgs)
 
 	End Sub
 
-	Public Sub SyncEvent()
-		'Dim dispatcherTimer As New System.Threading.Timer
-		'AddHandler dispatcherTimer.Tick, AddressOf dispatcherTimer_Tick
-		'dispatcherTimer.Interval = New TimeSpan(0, 0, 1)
-		'dispatcherTimer.Start()
-		Dim timer As New Timer
-		timer.Interval = timerInterval
-		';AddHandler timer.Tick, AddressOf HandleSyncEvent
-		timer.Start()
-	End Sub
-
-	'Handle messages received between end of previous sync and end of the current sync
-	Private Sub StartInitialSync()
-		AddHandler Application.Session.SyncObjects.AppFolders.SyncEnd, AddressOf HandleSyncEvent
-		'Initial sync doesn't throw this event
-		Application.Session.SyncObjects.AppFolders.Start()
-	End Sub
-
-	'Handle the message received before the first manual sync completed`
-	Private Sub HandleSyncEvent()
-
-		' If this is the first time we're running the sync event handler (initial manual sync), register the NewMailEx event handler.
-		If lastSync = Date.MinValue Then
-			'AddHandler Application.NewMailEx, AddressOf HandleIncomingMail
+	' Return a SyncObject representing the "All Accounts" send/receive group in Outlook.
+	Private Function GetAllAccountsSyncObject() As Outlook.SyncObject
+		' IMPORTANT: SyncObjects.Count and SyncObjects.Item are 1-indexed! By default, 1 = "All Accounts", 2 = "Application Folders"; there is no 0. These can be modified by the user!
+		' First, check to make sure there is at least one SyncObject. If not, something is very wrong; throw an exception.
+		If Application.Session.SyncObjects.Count > 0 Then
+			' Next, enumerate through the list of SyncObjects looking for a name matching gstrAllAccountsSyncObjectName. This is the "All Accounts" group.
+			For itemNum As Integer = 1 To Application.Session.SyncObjects.Count
+				If Application.Session.SyncObjects.Item(itemNum).Name Is gstrAllAccountsSyncObjectName Then
+					Return Application.Session.SyncObjects.Item(itemNum)
+				End If
+			Next
+			' If no SyncObject has a matching name, throw an exception.
+			' We could continue With an arbitrary SyncObject given it's just used for timing, but that assumes no one else will modify that usage in the future.
+			Throw New Exception("No SyncObject with name '" + gstrAllAccountsSyncObjectName + "' exists. Please contact IT and verify that send/receive groups have not been modified.")
+		Else
+			Throw New Exception("No SyncObjects exists. Please contact IT and verify that send/receive groups have not been modified.")
 		End If
+	End Function
 
-		Dim currentSync As Date = Now
+	Private Sub MainSyncLogic()
 
-		MsgBox("Sync Completed! Last: " + lastSync.ToString + " Current: " + currentSync.ToString)
+		' What calls this?
+		' ItemSend
+		' NewMailEx
+		' FolderAdd
+		' SyncEnd
+		' Timer
 
-		'If message.received > lastSync && message.received < currentSync
 
-
-		' Scan all folders for new items
-		' -For each store...
-		' --For each folder...
-		' ---For each message...
-		' ----Is item an email message
-		' ----Is received > firstSync
-		' ----Is unread
-		' ----Does contain a project ID?
-		' ----Process the message
-
-		lastSync = currentSync
+		If lastSync = Date.MinValue Then
+			' Initial Sync
+			RemoveHandler Application.Session.SyncObjects.Item()
+		End If
 	End Sub
+
+	Private Sub PlaceholderSub()
+		MsgBox("DEVELOPMENT USE ONLY!")
+	End Sub
+
+
 
 	' TODO: Clean this up
 	' Separate a list of message Entry
@@ -214,7 +226,7 @@ Public Class EpicorOutlookCRM
 	End Function
 
 	' Handle the event generated when a message is received.
-	Private Sub HandleIncomingMail(ByVal EntryIDCollection As String)
+	Private Sub HandleIncomingMail(ByVal EntryIDCollection As String) Handles Application.NewMailEx
 		' Need to handle multiple items
 		Dim item As System.Object = Application.Session.GetItemFromID(EntryIDCollection)
 		MsgBox(Len(EntryIDCollection).ToString)
