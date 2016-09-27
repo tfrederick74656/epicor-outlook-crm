@@ -6,16 +6,27 @@ Option Strict On
 Imports System.Drawing
 Imports System.Windows.Forms
 Imports Microsoft.Office.Core
+Imports Microsoft.Office.Interop.Outlook
 
 Public Class EpicorOutlookCRM
 
 	Private Const gstrAllAccountsSyncObjectName As String = "All Accounts"
 	Private Const gintTimerInterval As Integer = 1 * (60 * 1000) ' Convert minutes to milliseconds
 
+	Private Enum SyncType
+		Debug
+		Folder
+		Incoming
+		Outgoing
+		Sync
+		Timer
+	End Enum
+
 	Dim cbCRM As CommandBar = Nothing
 	Dim btnCall As CommandBarButton = Nothing
 	Dim btnEmail As CommandBarButton = Nothing
-	Dim lastSync As DateTime = Date.MinValue
+	Dim lastSync As Date = Date.MinValue
+	Dim currentSync As Date = Nothing
 	Dim syncTimer As Timer = Nothing
 
 	Private Sub EpicorOutlookCRM_Startup() Handles Me.Startup
@@ -90,6 +101,7 @@ Public Class EpicorOutlookCRM
 	' Handle click events for buttons on the CRM toolbar.
 	Private Sub HandleToolbarButtonClick(ByVal button As Office.CommandBarButton, ByRef Cancel As Boolean)
 		MsgBox("Button clicked: " & button.Tag)
+		MainSyncLogic(SyncType.Debug)
 		'Databases.ValidateProjectID("99-99-999")
 	End Sub
 
@@ -101,7 +113,7 @@ Public Class EpicorOutlookCRM
 			Dim imageList As New ImageList
 			imageList.Images.Add(icon)
 			image = ConvertImage.Convert(imageList.Images(0))
-		Catch ex As Exception
+		Catch ex As System.Exception
 			MessageBox.Show(ex.Message)
 		End Try
 		Return image
@@ -156,7 +168,7 @@ Public Class EpicorOutlookCRM
 
 	Private Sub SetupSync()
 		Dim syncObject As Outlook.SyncObject = GetAllAccountsSyncObject()
-		AddHandler syncObject.SyncEnd, AddressOf MainSyncLogic
+		AddHandler syncObject.SyncEnd, AddressOf PlaceholderSub
 		syncObject.Start()
 	End Sub
 
@@ -186,14 +198,77 @@ Public Class EpicorOutlookCRM
 				End If
 			Next
 			' If no SyncObject has a matching name, throw an exception.
-			' We could continue With an arbitrary SyncObject given it's just used for timing, but that assumes no one else will modify that usage in the future.
-			Throw New Exception("No SyncObject with name '" + gstrAllAccountsSyncObjectName + "' exists. Please contact IT and verify that send/receive groups have not been modified.")
+			' We could continue with an arbitrary SyncObject given it's just used for timing, but that assumes no one else will modify that usage in the future.
+			Throw New System.ApplicationException("No SyncObject with name '" + gstrAllAccountsSyncObjectName + "' exists. Please contact IT and verify that send/receive groups have not been modified.")
 		Else
-			Throw New Exception("No SyncObjects exists. Please contact IT and verify that send/receive groups have not been modified.")
+			Throw New System.ApplicationException("No SyncObjects exists. Please contact IT and verify that send/receive groups have not been modified.")
 		End If
 	End Function
 
-	Private Sub MainSyncLogic()
+	'Private Function GetItemsInFolder(ByVal baseFolder As MAPIFolder) As Queue(Of String)
+	'	baseFolder.Items.Item(0).
+	'If baseFolder.Items.Count > 0 Then
+	'Dim itemQueue As Queue(Of String)
+	'For itemNum As Integer = 1 To baseFolder.Items.Count
+	''itemQueue.Enqueue(baseFolder.Items.Item(itemNum).EntryID)
+	'Next
+	'	Return Nothing ' Return a collection here
+	'End If
+	'Return Nothing
+	'End Function
+
+	' Walk through the directory structure for a given parent folder, collect the entry ID for each folder, and store it in a queue.
+	Private Sub RecurseFolders(ByRef folderList As List(Of Folder), ByVal parentFolder As Folder)
+		For Each childFolder As Folder In parentFolder.Folders
+			folderList.Add(childFolder)
+			RecurseFolders(folderList, childFolder)
+		Next
+	End Sub
+
+	Private Sub EnumerateItems(ByRef folderQueue As Queue(Of String))
+
+	End Sub
+
+	Private Sub ProcessItem(ByRef mailItem As MailItem)
+		' Received 
+	End Sub
+
+	Private Sub MainSyncLogic(ByVal udtSyncType As SyncType)
+		' Save the time we started processing this event
+		currentSync = Now
+
+		Dim folderList As New List(Of Folder)
+
+		' Lightweight Scan
+		'folderQueue = New Queue(Of String)
+		'EnumerateItems()
+
+		' Full Scan
+		For Each store As Store In Application.Session.Stores
+			RecurseFolders(folderList, CType(store.GetRootFolder, Folder))
+			For Each folder As Folder In folderList
+				For Each item As Object In folder.Items
+					If TypeOf (item) Is MailItem Then
+						ProcessItem(CType(item, MailItem))
+					End If
+				Next
+			Next
+		Next
+		MsgBox("Enumeration Complete")
+
+		' List folderList
+
+		' Sub RecurseFolders(folder)
+		'	For Each subFolder in folder
+		'		folderList.Add(subFolder)
+		'		RecurseFolders(subFolder)
+		'	Next
+		' End Sub
+
+
+		' Function RecurseFolders(folderID)
+		'	GetFolderByID(folderID).GetFolders
+		' Return listOfIDs
 
 		' What calls this?
 		' ItemSend
@@ -202,11 +277,13 @@ Public Class EpicorOutlookCRM
 		' SyncEnd
 		' Timer
 
-
+		' Check for initial sync
 		If lastSync = Date.MinValue Then
-			' Initial Sync
-			RemoveHandler Application.Session.SyncObjects.Item()
+
 		End If
+
+		' Update the last sync time to this sync event
+		lastSync = currentSync
 	End Sub
 
 	Private Sub PlaceholderSub()
