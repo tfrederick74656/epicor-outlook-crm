@@ -230,7 +230,17 @@ Public Class EpicorOutlookCRM
 	End Sub
 
 	Private Sub ProcessItem(ByRef mailItem As MailItem)
-		' Received 
+		If mailItem.UnRead Then
+			If (mailItem.ReceivedTime >= lastSync) And (mailItem.ReceivedTime <= currentSync) Then
+				If mailItem.Sender.
+				If mailItem.Subject = "" Then
+
+				End If
+			End If
+		End If
+		' Unread
+		' last Sync < Received < currentSync
+		' Contains projectID
 	End Sub
 
 	Private Sub MainSyncLogic(ByVal udtSyncType As SyncType)
